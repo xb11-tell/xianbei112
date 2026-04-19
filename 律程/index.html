@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>律程 - 让每一步都算数</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div class="header-main">
+                <h1 class="app-title">🌟 律程</h1>
+                
+                <div class="header-row">
+                    <div class="quote-container">
+                        <p class="quote-text" id="quoteText">每一个不曾起舞的日子，都是对生命的辜负。</p>
+                    </div>
+                    <div class="header-actions-group">
+                        <button class="btn btn-primary" id="importPlanBtn">
+                            <span class="btn-icon import"></span>
+                            导入计划
+                        </button>
+                        <button class="btn btn-secondary" id="addPlanBtn">
+                            <span class="btn-icon add"></span>
+                            添加计划
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="stats-bar">
+                    <div class="stat-item">
+                        <span class="stat-icon">📋</span>
+                        <div class="stat-content">
+                            <span class="stat-label">今日任务</span>
+                            <span class="stat-value" id="todayTotal">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">✅</span>
+                        <div class="stat-content">
+                            <span class="stat-label">已完成</span>
+                            <span class="stat-value completed" id="todayCompleted">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">📊</span>
+                        <div class="stat-content">
+                            <span class="stat-label">完成率</span>
+                            <span class="stat-value" id="todayRate">0%</span>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">🔥</span>
+                        <div class="stat-content">
+                            <span class="stat-label">连续打卡</span>
+                            <span class="stat-value streak" id="streakDays">0天</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="header-row">
+                    <div class="header-actions-group secondary">
+                        <button class="btn btn-outline" id="adjustPlanBtn">
+                            <span class="btn-icon adjust"></span>
+                            调整计划
+                        </button>
+                        <button class="btn btn-outline" id="historyBtn">
+                            <span class="btn-icon history"></span>
+                            历史记录
+                        </button>
+                        <button class="btn btn-outline" id="periodicManageBtn">
+                            <span class="btn-icon adjust"></span>
+                            周期管理
+                        </button>
+                        <button class="btn btn-outline" id="analyticsBtn">
+                            <span class="btn-icon analytics"></span>
+                            数据分析
+                        </button>
+                        <button class="btn btn-outline danger" id="cancelPlanBtn">
+                            <span class="btn-icon trash"></span>
+                            取消计划
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section class="calendar-section">
+                <div class="calendar-container">
+                <div class="calendar-header">
+                    <button class="nav-btn" id="prevMonth">
+                        <span>◀</span>
+                    </button>
+                    <h2 class="current-month" id="currentMonth">2024年1月</h2>
+                    <button class="nav-btn" id="nextMonth">
+                        <span>▶</span>
+                    </button>
+                </div>
+                
+                <div class="calendar-weekdays">
+                    <div class="weekday">日</div>
+                    <div class="weekday">一</div>
+                    <div class="weekday">二</div>
+                    <div class="weekday">三</div>
+                    <div class="weekday">四</div>
+                    <div class="weekday">五</div>
+                    <div class="weekday">六</div>
+                </div>
+                
+                    <div class="calendar-grid" id="calendarGrid">
+                    </div>
+                </div>
+            </section>
+            
+            <section class="plans-section">
+                <div class="plans-header">
+                    <div class="plans-header-left">
+                        <h3 class="section-title">📋 今日计划</h3>
+                        <span class="plans-date" id="plansDate"></span>
+                    </div>
+                    <div class="plans-actions">
+                        <label class="btn btn-primary" id="batchSelectBtn">
+                            <input type="checkbox" id="batchSelectAllPlans" style="display: none;">
+                            <span class="btn-icon">☑️</span>
+                            批量选择
+                        </label>
+                        <button class="btn btn-secondary" id="addPlanBtn">
+                            <span class="btn-icon">➕</span>
+                            添加计划
+                        </button>
+                    </div>
+                </div>
+                <div class="plans-list" id="plansList">
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <p>暂无计划，点击右上角添加</p>
+                    </div>
+                </div>
+                <div class="batch-actions-bar" id="batchActionsBar" style="display: none;">
+                    <span class="batch-count">已选择 <span id="selectedCount">0</span> 项</span>
+                    <div class="batch-buttons">
+                        <button class="btn btn-success btn-sm" id="batchCompleteBtn">
+                            <span>✅</span> 批量完成
+                        </button>
+                        <button class="btn btn-danger btn-sm" id="batchDeleteBtn">
+                            <span>🗑️</span> 批量删除
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="modal-overlay">
+        <div class="modal" id="importModal">
+            <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>导入计划</h3>
+                <button class="close-btn" id="closeImportModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="import-mode-switch">
+                    <button class="mode-btn active" data-mode="upload" id="uploadModeBtn">
+                        <span class="mode-icon">📄</span>
+                        <span class="mode-text">文件上传</span>
+                    </button>
+                    <button class="mode-btn" data-mode="manual" id="manualModeBtn">
+                        <span class="mode-icon">✏️</span>
+                        <span class="mode-text">手动输入</span>
+                    </button>
+                </div>
+                
+                <div class="import-content-area" id="uploadContentArea">
+                    <div class="import-type-selector">
+                        <label class="import-type-option active" data-type="batch">
+                            <input type="radio" name="importType" value="batch" checked>
+                            <span class="type-icon">📅</span>
+                            <span class="type-text">批量日期导入</span>
+                            <span class="type-desc">选择日期范围批量导入</span>
+                        </label>
+                        <label class="import-type-option" data-type="periodic">
+                            <input type="radio" name="importType" value="periodic">
+                            <span class="type-icon">🔄</span>
+                            <span class="type-text">周期性导入</span>
+                            <span class="type-desc">按周期自动重复计划</span>
+                        </label>
+                        <label class="import-type-option" data-type="smartdoc">
+                            <input type="radio" name="importType" value="smartdoc">
+                            <span class="type-icon">🤖</span>
+                            <span class="type-text">智能文档</span>
+                            <span class="type-desc">自动解析文档</span>
+                        </label>
+                        <label class="import-type-option" data-type="longterm">
+                            <input type="radio" name="importType" value="longterm">
+                            <span class="type-icon">🎯</span>
+                            <span class="type-text">长期目标</span>
+                            <span class="type-desc">分解长期目标</span>
+                        </label>
+                    </div>
+                    
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">📄</div>
+                        <p>点击或拖拽文件到此处上传</p>
+                        <p class="upload-hint">支持 .txt, .md, .docx, .pdf 格式</p>
+                        <input type="file" id="fileInput" accept=".txt,.md,.docx,.pdf" hidden>
+                    </div>
+                    
+                    <div class="plan-preview" id="planPreview" style="display: none;">
+                        <h4>计划预览</h4>
+                        <div class="preview-content" id="previewContent"></div>
+                    </div>
+
+                    <div class="import-config-section" id="batchConfig">
+                        <h4 class="config-title">📅 批量日期导入设置</h4>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="batchStartDate">开始日期</label>
+                                <input type="date" id="batchStartDate" class="form-input">
+                            </div>
+                            <div class="form-group half">
+                                <label for="batchEndDate">结束日期</label>
+                                <input type="date" id="batchEndDate" class="form-input">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="batchPlanContent">计划内容（每行一个任务）</label>
+                            <textarea id="batchPlanContent" rows="5" placeholder="任务1&#10;任务2&#10;任务3&#10;..."></textarea>
+                            <p class="form-hint">任务将自动分配到日期范围内的每一天</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="batchPriority">优先级</label>
+                            <select id="batchPriority">
+                                <option value="medium">普通</option>
+                                <option value="high">高优先级</option>
+                                <option value="low">低优先级</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="import-config-section" id="periodicConfig" style="display: none;">
+                        <h4 class="config-title">🔄 周期性导入设置</h4>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="periodicStartDate">开始日期</label>
+                                <input type="date" id="periodicStartDate" class="form-input">
+                            </div>
+                            <div class="form-group half">
+                                <label for="periodicEndDate">结束日期（可选）</label>
+                                <input type="date" id="periodicEndDate" class="form-input">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="periodicDays">周期天数</label>
+                                <select id="periodicDays">
+                                    <option value="1">每天</option>
+                                    <option value="2">每2天</option>
+                                    <option value="3">每3天</option>
+                                    <option value="7" selected>每周</option>
+                                    <option value="14">每两周</option>
+                                    <option value="30">每月</option>
+                                </select>
+                            </div>
+                            <div class="form-group half">
+                                <label for="periodicPriority">优先级</label>
+                                <select id="periodicPriority">
+                                    <option value="medium">普通</option>
+                                    <option value="high">高优先级</option>
+                                    <option value="low">低优先级</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="periodicPlanContent">计划内容（每行一个任务）</label>
+                            <textarea id="periodicPlanContent" rows="5" placeholder="任务1&#10;任务2&#10;任务3&#10;..."></textarea>
+                            <p class="form-hint">任务将按周期自动重复到结束日期</p>
+                        </div>
+                    </div>
+
+                    <div class="import-config-section" id="smartdocConfig" style="display: none;">
+                        <h4 class="config-title">🤖 智能文档解析</h4>
+                        <div class="smartdoc-info">
+                            <p>上传包含多日计划的文档，系统将自动识别日期、任务内容和优先级，并智能分配到相应日期。</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="docStartDate">计划起始日期</label>
+                            <input type="date" id="docStartDate" class="form-input">
+                            <p class="form-hint">文档中识别的日期将以此日期为基准进行计算</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="docEndDate">计划结束日期（可选）</label>
+                            <input type="date" id="docEndDate" class="form-input">
+                            <p class="form-hint">设置后，计划将自动循环填充到结束日期</p>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="enableCyclic" checked>
+                                <span>启用计划循环</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="autoDetectPeriod" checked>
+                                <span>自动检测周期</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="defaultPeriod">默认周期（天）</label>
+                            <select id="defaultPeriod">
+                                <option value="0">单次任务（无周期）</option>
+                                <option value="7" selected>每周重复（7天）</option>
+                                <option value="14">双周重复（14天）</option>
+                                <option value="30">每月重复（30天）</option>
+                            </select>
+                        </div>
+                        <div class="doc-preview" id="docPreview" style="display: none;">
+                            <h4>解析结果预览</h4>
+                            <div class="preview-stats" id="previewStats"></div>
+                            <div class="preview-tasks" id="previewTasks"></div>
+                        </div>
+                    </div>
+
+                    <div class="import-config-section" id="longtermConfig" style="display: none;">
+                        <h4 class="config-title">🎯 长期目标分解</h4>
+                        <div class="form-group">
+                            <label for="goalName">目标名称</label>
+                            <input type="text" id="goalName" class="form-input" placeholder="例如：完成一本书的阅读">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="goalStartDate">开始日期</label>
+                                <input type="date" id="goalStartDate" class="form-input">
+                            </div>
+                            <div class="form-group half">
+                                <label for="goalEndDate">目标截止日期</label>
+                                <input type="date" id="goalEndDate" class="form-input">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="taskPerDay">每日任务数</label>
+                            <input type="number" id="taskPerDay" class="form-input" min="1" max="10" value="1">
+                            <p class="form-hint">系统会根据总天数智能分配任务</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="subTasks">子任务列表（每行一个任务）</label>
+                            <textarea id="subTasks" rows="6" placeholder="第一章：引言&#10;第二章：基础概念&#10;第三章：进阶技巧&#10;..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="import-content-area" id="manualContentArea" style="display: none;">
+                    <div class="manual-input-section">
+                        <div class="manual-input-header">
+                            <h4>📝 手动添加计划</h4>
+                            <p>快速添加单个或多个计划任务</p>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="manualPlanDate">计划日期</label>
+                                <input type="date" id="manualPlanDate" class="form-input">
+                            </div>
+                            <div class="form-group half">
+                                <label for="manualPlanPriority">优先级</label>
+                                <select id="manualPlanPriority" class="form-select">
+                                    <option value="medium">普通</option>
+                                    <option value="high">高优先级</option>
+                                    <option value="low">低优先级</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="manualPlanTitle">任务标题 *</label>
+                            <input type="text" id="manualPlanTitle" class="form-input" placeholder="输入任务标题...">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="manualPlanContent">任务详情（可选）</label>
+                            <textarea id="manualPlanContent" class="form-textarea" rows="3" placeholder="输入任务详细描述..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="manualIsPeriodic">
+                                <span>周期性任务</span>
+                            </label>
+                        </div>
+                        
+                        <div class="periodic-options" id="manualPeriodicOptions" style="display: none;">
+                            <div class="form-row">
+                                <div class="form-group half">
+                                <label for="manualPeriodDays">周期天数</label>
+                                <select id="manualPeriodDays" class="form-select">
+                                    <option value="1">每天</option>
+                                    <option value="2">每2天</option>
+                                    <option value="7" selected>每周</option>
+                                    <option value="14">每两周</option>
+                                    <option value="30">每月</option>
+                                </select>
+                            </div>
+                            <div class="form-group half">
+                                <label for="manualPeriodEnd">结束日期（可选）</label>
+                                <input type="date" id="manualPeriodEnd" class="form-input">
+                            </div>
+                            </div>
+                        </div>
+                        
+                        <div class="manual-actions">
+                            <button class="btn btn-secondary" id="addAnotherPlan" type="button">
+                                <span>➕</span> 添加并继续
+                            </button>
+                            <button class="btn btn-primary" id="confirmManualPlan" type="button">
+                                <span>✅</span> 确认添加
+                            </button>
+                        </div>
+                        
+                        <div class="manual-plans-list" id="manualPlansList" style="display: none;">
+                            <h4>待添加计划列表 <span class="pending-count" id="pendingCount">(0)</span></h4>
+                            <div class="pending-plans" id="pendingPlans"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="import-actions">
+                    <button class="btn btn-secondary" id="clearImportForm" type="button">清空表单</button>
+                    <button class="btn btn-primary" id="confirmImport" type="button">确认导入</button>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay">
+        <div class="modal" id="dayDetailModal">
+            <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="dayDetailTitle">日期详情</h3>
+                <button class="close-btn" id="closeDayDetailModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="day-plans" id="dayPlans"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="adjustModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>调整计划</h3>
+                <button class="close-btn" id="closeAdjustModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="adjust-list" id="adjustList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="adjustSingleModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3>调整任务日期</h3>
+                <button class="close-btn" id="closeAdjustSingleModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>任务名称</label>
+                    <p id="adjustTaskName" class="task-name-display"></p>
+                </div>
+                <div class="form-group">
+                    <label for="newDate">新日期</label>
+                    <input type="date" id="newDate" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="adjustReason">调整原因（可选）</label>
+                    <textarea id="adjustReason" rows="3" placeholder="记录调整原因..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="cancelAdjust">取消</button>
+                    <button class="btn btn-primary" id="confirmAdjust">确认调整</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>调整历史记录</h3>
+                <button class="close-btn" id="closeHistoryModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="history-list" id="historyList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="confirmModal">
+        <div class="modal-content modal-small">
+            <div class="modal-body" style="padding: var(--space-3xl); text-align: center;">
+                <div class="confirm-icon-wrapper">
+                    <div class="confirm-icon">✓</div>
+                </div>
+                <div class="confirm-title">标记计划完成</div>
+                <p class="confirm-subtitle">确定要将此计划标记为已完成吗？</p>
+                <p class="confirm-hint">按钮将在1.5秒后启用，请确认操作</p>
+                <div class="modal-actions" style="margin-top: var(--space-2xl);">
+                    <button class="btn btn-secondary" id="cancelComplete">取消</button>
+                    <button class="btn btn-primary" id="confirmComplete">确认完成</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="encourageModal">
+        <div class="modal-content modal-small">
+            <div class="modal-body encourage-body">
+                <div class="encourage-icon">🎉</div>
+                <p class="encourage-text" id="encourageText"></p>
+                <button class="btn btn-primary" id="closeEncourage">太棒了！</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="reminderModal">
+        <div class="modal-content modal-small">
+            <div class="modal-body encourage-body">
+                <div class="reminder-icon">💪</div>
+                <p class="reminder-text" id="reminderText"></p>
+                <button class="btn btn-primary" id="closeReminder">继续加油！</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="cancelPlanModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>取消计划</h3>
+                <button class="close-btn" id="closeCancelModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="cancel-filter-section">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>日期筛选</label>
+                            <select id="cancelDateFilter">
+                                <option value="all">所有日期</option>
+                                <option value="today">仅今天</option>
+                                <option value="week">本周</option>
+                                <option value="month">本月</option>
+                                <option value="past">已过期</option>
+                                <option value="future">未来</option>
+                                <option value="custom">自定义日期</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" id="customDateRange" style="display: none;">
+                            <label>开始日期</label>
+                            <input type="date" id="cancelStartDate" class="form-input">
+                        </div>
+                        <div class="filter-group" id="customDateRangeEnd" style="display: none;">
+                            <label>结束日期</label>
+                            <input type="date" id="cancelEndDate" class="form-input">
+                        </div>
+                        <div class="filter-group">
+                            <label>任务类型</label>
+                            <select id="cancelTypeFilter">
+                                <option value="all">全部类型</option>
+                                <option value="single">单次任务</option>
+                                <option value="periodic">周期任务</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="applyFilterBtn">
+                            <span>🔍</span> 应用筛选
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="cancel-stats-bar">
+                    <div class="cancel-stat">
+                        <span class="stat-num" id="filteredCount">0</span>
+                        <span class="stat-text">项计划</span>
+                    </div>
+                    <div class="cancel-stat">
+                        <span class="stat-num" id="selectedCountDisplay">0</span>
+                        <span class="stat-text">已选择</span>
+                    </div>
+                </div>
+                
+                <div class="batch-actions">
+                    <button class="btn btn-secondary btn-sm" id="selectAllBtn">
+                        <span>☑️</span> 全选当前
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="deselectAllBtn">
+                        <span>⬜</span> 取消全选
+                    </button>
+                    <button class="btn btn-danger btn-sm" id="batchCancelBtn" disabled>
+                        <span>🗑️</span> 批量取消 (<span id="selectedCount">0</span>)
+                    </button>
+                    <button class="btn btn-danger btn-sm" id="cancelAllPlansBtn">
+                        <span>⚠️</span> 取消所有计划
+                    </button>
+                </div>
+                
+                <div class="plan-list" id="cancelPlanList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="periodicManageModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>周期性计划管理</h3>
+                <button class="close-btn" id="closePeriodicModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="periodic-info">
+                    <p class="info-text">系统已自动识别以下周期性计划，您可以选择是否按照周期天数重新分配时间安排。</p>
+                </div>
+                <div class="periodic-list" id="periodicPlanList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="periodicAdjustModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3>调整周期性计划</h3>
+                <button class="close-btn" id="closePeriodicAdjustModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>计划名称</label>
+                    <p id="periodicPlanName" class="task-name-display"></p>
+                </div>
+                <div class="form-group">
+                    <label>当前周期</label>
+                    <p id="currentPeriod" class="info-display"></p>
+                </div>
+                <div class="form-group">
+                    <label for="newPeriodDays">新周期天数</label>
+                    <input type="number" id="newPeriodDays" class="form-input" min="1" max="365" value="7">
+                </div>
+                <div class="form-group half">
+                    <label for="newStartDate">新开始日期</label>
+                    <input type="date" id="newStartDate" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="autoRedistribute" checked>
+                        <span>自动重新分配时间安排</span>
+                    </label>
+                    <p class="form-hint">勾选后将根据新周期自动调整所有计划日期</p>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="cancelPeriodicAdjust">取消</button>
+                    <button class="btn btn-primary" id="confirmPeriodicAdjust">确认调整</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="confirm-modal" id="batchConfirmModal">
+        <div class="confirm-content">
+            <div class="confirm-icon">⚠️</div>
+            <div class="confirm-title">确认批量取消</div>
+            <div class="confirm-message">您确定要取消以下数量的计划吗？此操作不可撤销。</div>
+            <div class="confirm-count" id="confirmCount">0</div>
+            <div class="confirm-actions">
+                <button class="btn btn-secondary" id="cancelBatchConfirm">取消</button>
+                <button class="btn btn-danger" id="confirmBatchCancel">确认取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="confirm-modal" id="batchResultModal">
+        <div class="cancel-result">
+            <div class="result-icon success" id="resultIcon">✅</div>
+            <div class="result-title" id="resultTitle">操作成功</div>
+            <div class="result-details" id="resultDetails"></div>
+            <div class="result-list" id="resultList"></div>
+            <button class="btn btn-primary btn-full" id="closeResultBtn">确定</button>
+        </div>
+    </div>
+
+    <div class="modal" id="analysisModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>📊 数据分析中心</h3>
+                <button class="close-btn" id="closeAnalysisModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="analysis-tabs">
+                    <button class="analysis-tab active" data-tab="dailyAnalysis"><span>📅 每日分析</span></button>
+                    <button class="analysis-tab" data-tab="weeklyReport"><span>📈 周报告</span></button>
+                    <button class="analysis-tab" data-tab="suggestions"><span>💡 改进建议</span></button>
+                </div>
+                
+                <div class="tab-content active" id="dailyAnalysisTab">
+                    <div class="analysis-date-selector">
+                        <button class="btn btn-secondary btn-sm" id="prevDayAnalysis">◀ 前一天</button>
+                        <span class="analysis-date" id="analysisDate">2024-01-01</span>
+                        <button class="btn btn-secondary btn-sm" id="nextDayAnalysis">后一天 ▶</button>
+                    </div>
+                    
+                    <div class="analysis-stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="dayTotalTasks">0</div>
+                            <div class="stat-label">总任务数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="dayCompletedTasks">0</div>
+                            <div class="stat-label">已完成</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="dayPendingTasks">0</div>
+                            <div class="stat-label">待完成</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="dayCompletionRate">0%</div>
+                            <div class="stat-label">完成率</div>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-container">
+                        <div class="progress-header">
+                            <div class="progress-title">当日完成进度</div>
+                            <div class="progress-percentage" id="dailyProgressPercent">0%</div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="dailyProgressBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="weeklyChartContent"></div>
+                    
+                    <div class="analysis-section">
+                        <h4>任务类型分布</h4>
+                        <div id="taskTypeChart"></div>
+                    </div>
+                    
+                    <div class="analysis-section">
+                        <h4>每日总结</h4>
+                        <div class="daily-summary" id="dailySummary">
+                            <p class="summary-placeholder">暂无数据，开始添加计划后即可生成每日总结</p>
+                        </div>
+                    </div>
+                    
+                    <div class="analysis-section">
+                        <h4>任务详情</h4>
+                        <div class="task-detail-list" id="taskDetailList"></div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="weeklyReportTab">
+                    <div class="weekly-overview">
+                        <div class="overview-header">
+                            <h4>本周概览</h4>
+                            <span class="week-range" id="weekRange">2024-01-01 至 2024-01-07</span>
+                        </div>
+                        <div class="weekly-stats">
+                            <div class="weekly-stat-item">
+                                <div class="stat-number" id="weekTotalTasks">0</div>
+                                <div class="stat-label">本周任务</div>
+                            </div>
+                            <div class="weekly-stat-item">
+                                <div class="stat-number" id="weekCompletedTasks">0</div>
+                                <div class="stat-label">已完成</div>
+                            </div>
+                            <div class="weekly-stat-item">
+                                <div class="stat-number" id="weekCompletionRate">0%</div>
+                                <div class="stat-label">完成率</div>
+                            </div>
+                            <div class="weekly-stat-item">
+                                <div class="stat-number" id="weekStreak">0</div>
+                                <div class="stat-label">连续天数</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="analysis-section">
+                        <h4>每日完成趋势</h4>
+                        <div class="chart-container" id="weeklyTrendChart"></div>
+                    </div>
+                    
+                    <div class="analysis-section">
+                        <h4>周总结报告</h4>
+                        <div class="weekly-summary" id="weeklySummary">
+                            <p class="summary-placeholder">暂无数据</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="suggestionsTab">
+                    <div class="suggestions-container">
+                        <div class="suggestion-header">
+                            <h4>🎯 个性化改进建议</h4>
+                            <p class="suggestion-desc">基于您的自律数据分析，为您提供以下建议</p>
+                        </div>
+                        <div class="suggestions-list" id="suggestionsList">
+                            <div class="suggestion-placeholder">
+                                <p>开始记录您的计划后，系统将为您生成个性化建议</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="analysis-section">
+                        <h4>自律评分</h4>
+                        <div class="score-display">
+                            <div class="score-circle" id="disciplineScore">
+                                <div class="score-number">0</div>
+                                <div class="score-label">分</div>
+                            </div>
+                            <div class="score-details" id="scoreDetails">
+                                <div class="score-item">
+                                    <span class="score-name">完成率</span>
+                                    <div class="score-bar"><div class="score-fill" style="width: 0%"></div></div>
+                                    <span class="score-value">0分</span>
+                                </div>
+                                <div class="score-item">
+                                    <span class="score-name">连续性</span>
+                                    <div class="score-bar"><div class="score-fill" style="width: 0%"></div></div>
+                                    <span class="score-value">0分</span>
+                                </div>
+                                <div class="score-item">
+                                    <span class="score-name">计划质量</span>
+                                    <div class="score-bar"><div class="score-fill" style="width: 0%"></div></div>
+                                    <span class="score-value">0分</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="app.js?v=2026041905"></script>
+</body>
+</html>

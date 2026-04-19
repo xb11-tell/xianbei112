@@ -289,6 +289,10 @@ class SelfDisciplineApp {
         return `${year}-${month}-${day}`;
     }
 
+    generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    }
+
     getPlansForDate(dateStr) {
         return this.plans.filter(plan => {
             if (plan.isPeriodic) {
@@ -838,11 +842,19 @@ class SelfDisciplineApp {
         }
         
         this.bindEventIfExists('cancelBatchConfirm', () => {
-            document.getElementById('batchConfirmModal')?.classList.remove('active');
+            this.closeConfirmModal();
+            this.pendingCancelAll = false;
         });
-        this.bindEventIfExists('confirmBatchCancel', () => this.executeBatchCancel());
+        this.bindEventIfExists('confirmBatchCancel', () => {
+            if (this.pendingCancelAll) {
+                this.executeCancelAll();
+                this.pendingCancelAll = false;
+            } else {
+                this.executeBatchCancel();
+            }
+        });
         this.bindEventIfExists('closeResultBtn', () => {
-            document.getElementById('batchResultModal')?.classList.remove('active');
+            this.closeConfirmModal();
         });
         
         this.bindEventIfExists('uploadModeBtn', () => this.switchImportMode('upload'));
@@ -878,37 +890,38 @@ class SelfDisciplineApp {
         }
         
         this.bindEventIfExists('closeAnalysisModal', () => {
-            document.getElementById('analysisModal')?.classList.remove('active');
+            this.closeAllModals();
         });
         this.bindEventIfExists('prevDayAnalysis', () => this.navigateAnalysisDate(-1));
         this.bindEventIfExists('nextDayAnalysis', () => this.navigateAnalysisDate(1));
         this.bindEventIfExists('closePeriodicModal', () => {
-            document.getElementById('periodicManageModal')?.classList.remove('active');
+            this.closeAllModals();
         });
         this.bindEventIfExists('closePeriodicAdjustModal', () => {
-            document.getElementById('periodicAdjustModal')?.classList.remove('active');
+            this.closeAllModals();
+            this.currentPeriodicPlan = null;
         });
         this.bindEventIfExists('cancelPeriodicAdjust', () => {
-            document.getElementById('periodicAdjustModal')?.classList.remove('active');
+            this.closeAllModals();
             this.currentPeriodicPlan = null;
         });
         this.bindEventIfExists('confirmPeriodicAdjust', () => this.confirmPeriodicAdjust());
         
         this.bindEventIfExists('closeImportModal', () => this.closeImportModal());
         this.bindEventIfExists('closeDayDetailModal', () => {
-            document.getElementById('dayDetailModal')?.classList.remove('active');
+            this.closeAllModals();
         });
         this.bindEventIfExists('closeCancelModal', () => {
-            document.getElementById('cancelPlanModal')?.classList.remove('active');
+            this.closeAllModals();
         });
         this.bindEventIfExists('closeAdjustModal', () => {
-            document.getElementById('adjustModal')?.classList.remove('active');
+            this.closeAllModals();
         });
         this.bindEventIfExists('closeHistoryModal', () => {
-            document.getElementById('historyModal')?.classList.remove('active');
+            this.closeAllModals();
         });
         this.bindEventIfExists('closeAdjustSingleModal', () => {
-            document.getElementById('adjustSingleModal')?.classList.remove('active');
+            this.closeAllModals();
         });
         
         const uploadArea = document.getElementById('uploadArea');
@@ -1042,9 +1055,14 @@ class SelfDisciplineApp {
         const overlay = this.getOrCreateOverlay();
         overlay.appendChild(modalElement);
         
+        overlay.style.pointerEvents = '';
+        overlay.style.opacity = '';
+        overlay.style.visibility = '';
+        
         modalElement.style.opacity = '0';
         modalElement.style.transform = 'scale(0.9)';
         modalElement.style.display = 'block';
+        modalElement.style.pointerEvents = 'auto';
         
         setTimeout(() => {
             overlay.classList.add('active');
@@ -1053,6 +1071,7 @@ class SelfDisciplineApp {
         }, 50);
         
         this.currentOpenModal = modalElement;
+        console.log('✅ 弹窗已激活:', modalElement.id);
     }
 
     deactivateModal(modalElement) {
@@ -1061,30 +1080,56 @@ class SelfDisciplineApp {
             document.body.appendChild(modalElement);
         }
         
-        modalElement.style.display = 'none';
+        modalElement.style.display = '';
+        modalElement.style.opacity = '';
+        modalElement.style.transform = '';
+        modalElement.style.pointerEvents = '';
         
         if (overlay) {
+            while (overlay.firstChild) {
+                document.body.appendChild(overlay.firstChild);
+            }
             overlay.classList.remove('active');
+            overlay.style.pointerEvents = '';
+            overlay.style.opacity = '';
+            overlay.style.visibility = '';
         }
         
+        document.body.style.pointerEvents = '';
+        document.body.style.overflow = '';
+        
         this.currentOpenModal = null;
+        console.log('✅ 弹窗已关闭并移回 body:', modalElement.id);
     }
 
     closeAllModals() {
         const overlay = document.getElementById('globalModalOverlay');
         
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.style.display = 'none';
-            if (overlay && overlay.contains(modal)) {
-                document.body.appendChild(modal);
+        if (overlay) {
+            while (overlay.firstChild) {
+                document.body.appendChild(overlay.firstChild);
             }
+        }
+        
+        document.querySelectorAll('.modal, .confirm-modal').forEach(modal => {
+            modal.style.display = '';
+            modal.style.opacity = '';
+            modal.style.transform = '';
+            modal.style.pointerEvents = '';
         });
         
         if (overlay) {
             overlay.classList.remove('active');
+            overlay.style.pointerEvents = '';
+            overlay.style.opacity = '';
+            overlay.style.visibility = '';
         }
         
+        document.body.style.pointerEvents = '';
+        document.body.style.overflow = '';
+        
         this.currentOpenModal = null;
+        console.log('✅ 所有弹窗已关闭并移回 body');
     }
 
     openPeriodicAdjustModal(planId) {
@@ -1127,7 +1172,7 @@ class SelfDisciplineApp {
         this.savePlans();
         
         this.showToast('周期性计划已更新');
-        document.getElementById('periodicAdjustModal').classList.remove('active');
+        this.closeAllModals();
         this.renderCalendar();
         this.updateStats();
         this.currentPeriodicPlan = null;
@@ -1257,16 +1302,41 @@ class SelfDisciplineApp {
             return;
         }
         
-        const confirmModal = document.getElementById('batchConfirmModal');
-        const confirmCount = document.getElementById('confirmCount');
+        this.closeAllModals();
         
-        confirmCount.textContent = this.selectedPlans.size;
-        confirmModal.classList.add('active');
+        setTimeout(() => {
+            let confirmModal = document.getElementById('batchConfirmModal');
+            
+            if (!confirmModal || confirmModal.parentElement !== document.body) {
+                confirmModal = this.createConfirmModal();
+            }
+            
+            const confirmCount = document.getElementById('confirmCount');
+            
+            console.log('✅ 批量取消确认弹窗准备就绪');
+            
+            if (confirmCount) {
+                confirmCount.textContent = this.selectedPlans.size;
+            }
+            
+            const confirmContent = confirmModal.querySelector('.confirm-content');
+            
+            setTimeout(() => {
+                confirmModal.style.opacity = '1';
+                confirmModal.style.pointerEvents = 'auto';
+                if (confirmContent) {
+                    confirmContent.style.transform = 'translate(-50%, -50%) scale(1) !important';
+                }
+            }, 30);
+            
+            this.pendingCancelAll = false;
+            console.log('✅ 批量取消确认弹窗已居中显示！');
+        }, 80);
     }
 
     executeBatchCancel() {
         const confirmModal = document.getElementById('batchConfirmModal');
-        confirmModal.classList.remove('active');
+        if (confirmModal) confirmModal.remove();
         
         let planIdsToCancel;
         let canceledPlans = [];
@@ -1331,6 +1401,10 @@ class SelfDisciplineApp {
         const resultDetails = document.getElementById('resultDetails');
         const resultList = document.getElementById('resultList');
         
+        if (resultModal && resultModal.parentElement !== document.body) {
+            document.body.appendChild(resultModal);
+        }
+        
         if (success) {
             resultIcon.textContent = '✅';
             resultIcon.className = 'result-icon success';
@@ -1363,7 +1437,42 @@ class SelfDisciplineApp {
             resultList.style.display = 'none';
         }
         
-        resultModal.classList.add('active');
+        resultModal.style.cssText = `
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 99999 !important;
+            background: rgba(0, 0, 0, 0.7) !important;
+            padding: 20px !important;
+            opacity: 0;
+            pointer-events: none;
+        `;
+        
+        const cancelResult = resultModal.querySelector('.cancel-result');
+        if (cancelResult) {
+            cancelResult.style.cssText = `
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) scale(0.9) !important;
+                max-width: 420px !important;
+                width: 90% !important;
+                z-index: 100000 !important;
+                pointer-events: auto !important;
+            `;
+        }
+        
+        setTimeout(() => {
+            resultModal.style.opacity = '1';
+            resultModal.style.pointerEvents = 'auto';
+            if (cancelResult) {
+                cancelResult.style.transform = 'translate(-50%, -50%) scale(1) !important';
+            }
+        }, 60);
     }
 
     openCancelModal() {
@@ -1573,7 +1682,7 @@ class SelfDisciplineApp {
         planList.querySelectorAll('.btn-cancel-plan').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const planId = e.target.dataset.planId;
-                this.cancelPlan(planId);
+                this.singleCancelPlan(planId);
             });
         });
     }
@@ -1589,14 +1698,185 @@ class SelfDisciplineApp {
         this.updateSelectedCount();
     }
 
+    createConfirmModal() {
+        console.log('🛠️ 现场创建确认弹窗...');
+        
+        const existingModal = document.getElementById('batchConfirmModal');
+        if (existingModal) existingModal.remove();
+        
+        const modalHtml = `
+            <div id="batchConfirmModal" style="
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                z-index: 99999 !important;
+                background: rgba(0, 0, 0, 0.75) !important;
+                backdrop-filter: blur(8px) !important;
+                padding: 20px !important;
+                opacity: 0;
+                pointer-events: none;
+                display: block;
+            ">
+                <div class="confirm-content" style="
+                    position: fixed !important;
+                    top: 50% !important;
+                    left: 50% !important;
+                    transform: translate(-50%, -50%) scale(0.9) !important;
+                    background: #1e293b;
+                    border-radius: 24px;
+                    padding: 32px;
+                    max-width: 420px;
+                    width: 90%;
+                    text-align: center;
+                    z-index: 100000 !important;
+                    pointer-events: auto !important;
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                ">
+                    <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                    <div style="font-size: 20px; font-weight: 600; color: #f1f5f9; margin-bottom: 12px;">确认批量取消</div>
+                    <div style="color: #94a3b8; margin-bottom: 16px;">您确定要取消以下数量的计划吗？此操作不可撤销。</div>
+                    <div id="confirmCount" style="font-size: 32px; font-weight: 700; color: #f59e0b; margin-bottom: 24px;">0</div>
+                    <div style="display: flex; gap: 12px; justify-content: center;">
+                        <button id="cancelBatchConfirm" style="
+                            flex: 1;
+                            padding: 12px 24px;
+                            border-radius: 12px;
+                            border: none;
+                            background: #475569;
+                            color: #f1f5f9;
+                            font-size: 14px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">取消</button>
+                        <button id="confirmBatchCancel" style="
+                            flex: 1;
+                            padding: 12px 24px;
+                            border-radius: 12px;
+                            border: none;
+                            background: #dc2626;
+                            color: white;
+                            font-size: 14px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">确认取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = modalHtml;
+        const confirmModal = tempDiv.firstElementChild;
+        document.body.appendChild(confirmModal);
+        
+        document.getElementById('cancelBatchConfirm').addEventListener('click', () => {
+            confirmModal.remove();
+            this.pendingCancelAll = false;
+            console.log('✅ 已取消');
+        });
+        
+        document.getElementById('confirmBatchCancel').addEventListener('click', () => {
+            confirmModal.remove();
+            if (this.pendingCancelAll) {
+                this.executeCancelAll();
+                this.pendingCancelAll = false;
+            } else {
+                this.executeBatchCancel();
+            }
+        });
+        
+        console.log('✅ 弹窗现场创建成功！');
+        return confirmModal;
+    }
+
     cancelAllPlans() {
+        this.closeAllModals();
+        
+        setTimeout(() => {
+            let confirmModal = document.getElementById('batchConfirmModal');
+            
+            if (!confirmModal || confirmModal.parentElement !== document.body) {
+                confirmModal = this.createConfirmModal();
+            }
+            
+            const confirmCount = document.getElementById('confirmCount');
+            
+            console.log('✅ 确认弹窗准备就绪');
+            
+            if (confirmCount) {
+                confirmCount.textContent = this.plans.length;
+            }
+            
+            const confirmContent = confirmModal.querySelector('.confirm-content');
+            
+            setTimeout(() => {
+                confirmModal.style.opacity = '1';
+                confirmModal.style.pointerEvents = 'auto';
+                if (confirmContent) {
+                    confirmContent.style.transform = 'translate(-50%, -50%) scale(1) !important';
+                }
+            }, 30);
+            
+            this.pendingCancelAll = true;
+            console.log('✅ 确认弹窗已居中显示！');
+        }, 80);
+    }
+    
+    executeCancelAll() {
+        const total = this.plans.length;
+        this.plans = [];
+        this.selectedPlans.clear();
+        this.filteredPlansForCancel = [];
+        this.savePlans();
+        
+        this.renderCalendar();
+        this.updateStats();
+        const renderDate = this.selectedDate ? this.formatDate(this.selectedDate) : this.formatDate(new Date());
+        this.renderPlansForDate(renderDate);
+        
+        this.showToast(`已取消所有 ${total} 个计划`);
+        
+        this.closeConfirmModal();
+        this.closeAllModals();
+        
+        document.body.style.pointerEvents = '';
+        document.body.style.overflow = '';
+        
+        const overlays = document.querySelectorAll('.modal-overlay, .confirm-modal');
+        overlays.forEach(overlay => {
+            overlay.style.pointerEvents = 'none';
+        });
+        
+        this.pendingCancelAll = false;
+        console.log('✅ 取消所有计划完成，交互已完全恢复');
+    }
+    
+    closeConfirmModal() {
         const confirmModal = document.getElementById('batchConfirmModal');
-        const confirmCount = document.getElementById('confirmCount');
+        const resultModal = document.getElementById('batchResultModal');
         
-        confirmCount.textContent = this.plans.length;
-        confirmModal.classList.add('active');
+        if (confirmModal) {
+            confirmModal.classList.remove('active');
+            setTimeout(() => {
+                confirmModal.style.display = 'none';
+            }, 300);
+        }
         
-        this.pendingCancelAll = true;
+        if (resultModal) {
+            resultModal.classList.remove('active');
+            setTimeout(() => {
+                resultModal.style.display = 'none';
+            }, 300);
+        }
+        
+        document.body.style.pointerEvents = '';
+        document.body.style.overflow = '';
     }
 
     updateSelectedCount() {
@@ -1620,10 +1900,6 @@ class SelfDisciplineApp {
         if (batchBtn) {
             batchBtn.disabled = this.selectedPlans.size === 0;
         }
-    }
-
-    saveCompletions() {
-        localStorage.setItem('selfDisciplineCompletions', JSON.stringify(this.completions));
     }
 
     switchTab(tabName) {
@@ -1747,52 +2023,74 @@ class SelfDisciplineApp {
     }
 
     addManualPlan(continueAdding = false) {
-        const date = document.getElementById('manualPlanDate').value;
-        const title = document.getElementById('manualPlanTitle').value.trim();
-        const content = document.getElementById('manualPlanContent').value.trim();
-        const priority = document.getElementById('manualPlanPriority').value;
-        const isPeriodic = document.getElementById('manualIsPeriodic').checked;
-        const periodDays = parseInt(document.getElementById('manualPeriodDays').value) || 7;
-        const periodEnd = document.getElementById('manualPeriodEnd').value;
-        
-        if (!date) {
-            this.showToast('请选择计划日期');
+        try {
+            console.log('📝 开始手动添加计划');
+            
+            const dateEl = document.getElementById('manualPlanDate');
+            const titleEl = document.getElementById('manualPlanTitle');
+            const contentEl = document.getElementById('manualPlanContent');
+            const priorityEl = document.getElementById('manualPlanPriority');
+            const isPeriodicEl = document.getElementById('manualIsPeriodic');
+            const periodDaysEl = document.getElementById('manualPeriodDays');
+            const periodEndEl = document.getElementById('manualPeriodEnd');
+            
+            console.log('  - 元素存在:', { dateEl: !!dateEl, titleEl: !!titleEl, priorityEl: !!priorityEl });
+            
+            const date = dateEl ? dateEl.value : '';
+            const title = titleEl ? titleEl.value.trim() : '';
+            const content = contentEl ? contentEl.value.trim() : '';
+            const priority = priorityEl ? priorityEl.value : 'medium';
+            const isPeriodic = isPeriodicEl ? isPeriodicEl.checked : false;
+            const periodDays = periodDaysEl ? (parseInt(periodDaysEl.value) || 7) : 7;
+            const periodEnd = periodEndEl ? periodEndEl.value : '';
+            
+            console.log('  - 输入值:', { date, title, priority, isPeriodic });
+            
+            if (!date) {
+                this.showToast('请选择计划日期');
+                return false;
+            }
+            
+            if (!title) {
+                this.showToast('请输入任务标题');
+                return false;
+            }
+            
+            const plan = {
+                id: Date.now().toString(),
+                date: date,
+                title: title,
+                content: content || title,
+                priority: priority,
+                isPeriodic: isPeriodic,
+                periodDays: isPeriodic ? periodDays : 0,
+                periodEnd: isPeriodic ? periodEnd : null,
+                completed: false,
+                createdAt: new Date().toISOString()
+            };
+            
+            if (!this.pendingManualPlans) {
+                this.pendingManualPlans = [];
+            }
+            
+            this.pendingManualPlans.push(plan);
+            this.renderPendingManualPlans();
+            
+            if (continueAdding) {
+                if (titleEl) titleEl.value = '';
+                if (contentEl) contentEl.value = '';
+                this.showToast('已添加到待添加列表，可继续添加');
+            } else {
+                this.confirmManualPlans();
+            }
+            
+            console.log('✅ 计划添加成功');
+            return true;
+        } catch (error) {
+            console.error('❌ 手动添加计划错误:', error);
+            this.showToast('添加计划失败，请重试');
             return false;
         }
-        
-        if (!title) {
-            this.showToast('请输入任务标题');
-            return false;
-        }
-        
-        const plan = {
-            id: Date.now().toString(),
-            date: date,
-            title: title,
-            content: content || title,
-            priority: priority,
-            isPeriodic: isPeriodic,
-            periodDays: isPeriodic ? periodDays : 0,
-            periodEnd: isPeriodic ? periodEnd : null,
-            completed: false
-        };
-        
-        if (!this.pendingManualPlans) {
-            this.pendingManualPlans = [];
-        }
-        
-        this.pendingManualPlans.push(plan);
-        this.renderPendingManualPlans();
-        
-        if (continueAdding) {
-            document.getElementById('manualPlanTitle').value = '';
-            document.getElementById('manualPlanContent').value = '';
-            this.showToast('已添加到待添加列表，可继续添加');
-        } else {
-            this.confirmManualPlans();
-        }
-        
-        return true;
     }
 
     renderPendingManualPlans() {
@@ -1837,14 +2135,17 @@ class SelfDisciplineApp {
     }
 
     confirmManualPlans() {
-        if (!this.pendingManualPlans || this.pendingManualPlans.length === 0) {
+        const plansToImport = [...(this.pendingManualPlans || [])];
+        console.log('📋 准备导入计划列表:', plansToImport);
+        
+        if (plansToImport.length === 0) {
             this.showToast('请先添加计划');
             return;
         }
         
         let addedCount = 0;
         
-        this.pendingManualPlans.forEach(plan => {
+        plansToImport.forEach(plan => {
             const newPlan = {
                 id: this.generateId(),
                 date: plan.date,
@@ -1857,48 +2158,49 @@ class SelfDisciplineApp {
                 createdAt: new Date().toISOString()
             };
             
-            if (!this.plans.some(p => p.date === newPlan.date && p.title === newPlan.title)) {
-                this.plans.push(newPlan);
-                addedCount++;
+            this.plans.push(newPlan);
+            addedCount++;
+            console.log('✅ 已添加计划:', newPlan.title, newPlan.date);
+            
+            if (plan.isPeriodic && plan.periodEnd) {
+                const endDate = new Date(plan.periodEnd);
+                let currentDate = new Date(plan.date);
+                currentDate.setDate(currentDate.getDate() + plan.periodDays);
                 
-                if (plan.isPeriodic && plan.periodEnd) {
-                    const endDate = new Date(plan.periodEnd);
-                    let currentDate = new Date(plan.date);
+                while (currentDate <= endDate) {
+                    const cyclicPlan = {
+                        ...newPlan,
+                        id: this.generateId(),
+                        date: this.formatDate(currentDate),
+                        createdAt: new Date().toISOString()
+                    };
+                    this.plans.push(cyclicPlan);
+                    addedCount++;
                     currentDate.setDate(currentDate.getDate() + plan.periodDays);
-                    
-                    while (currentDate <= endDate) {
-                        const cyclicPlan = {
-                            ...newPlan,
-                            id: this.generateId(),
-                            date: this.formatDate(currentDate),
-                            createdAt: new Date().toISOString()
-                        };
-                        
-                        if (!this.plans.some(p => p.date === cyclicPlan.date && p.title === cyclicPlan.title)) {
-                            this.plans.push(cyclicPlan);
-                            addedCount++;
-                        }
-                        
-                        currentDate.setDate(currentDate.getDate() + plan.periodDays);
-                    }
                 }
             }
         });
         
+        console.log('💾 导入后总计划数:', this.plans.length);
+        
         this.savePlans();
         this.renderCalendar();
         this.updateStats();
-        this.closeImportModal();
-        this.showToast(`成功添加 ${addedCount} 个计划`);
         
         this.pendingManualPlans = [];
-        document.getElementById('manualPlansList').style.display = 'none';
+        const listEl = document.getElementById('manualPlansList');
+        if (listEl) listEl.style.display = 'none';
+        
+        this.closeImportModal();
+        this.showToast(`成功添加 ${addedCount} 个计划`);
+        console.log(`✅ 手动导入完成: ${addedCount} 个计划`);
     }
 
     closeImportModal() {
-        document.getElementById('importModal').classList.remove('active');
+        this.closeAllModals();
         this.pendingPlanData = null;
         this.pendingDocPlans = null;
+        console.log('✅ 导入弹窗已关闭');
     }
 
     handleFileUpload(file) {
@@ -3559,18 +3861,37 @@ class SelfDisciplineApp {
 
     renderWeeklyTrendChart(dailyStats) {
         const container = document.getElementById('weeklyTrendChart');
+        const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
         
-        const maxRate = Math.max(...dailyStats.map(d => d.rate), 100);
+        const chartData = dailyStats.map((d, i) => ({
+            ...d,
+            dayName: dayNames[new Date(d.date).getDay()],
+            maxHeight: 120,
+            totalHeight: d.total > 0 ? Math.max(d.total * 10, 20) : 0,
+            completedHeight: d.completed > 0 ? Math.max(d.completed * 10, 10) : 0
+        }));
         
         container.innerHTML = `
-            <div class="chart-bar">
-                ${dailyStats.map(day => `
-                    <div class="chart-bar-item">
-                        <div class="chart-bar-value">${day.rate}%</div>
-                        <div class="chart-bar-fill" style="height: ${day.rate}%"></div>
-                        <div class="chart-bar-label">${day.date.slice(5)}</div>
+            <div class="weekly-chart-bars">
+                ${chartData.map(d => `
+                    <div class="weekly-chart-bar-group">
+                        <div class="weekly-chart-bar-wrapper">
+                            <div class="weekly-chart-bar total" style="height: ${d.totalHeight}px" title="总任务: ${d.total}"></div>
+                            <div class="weekly-chart-bar completed" style="height: ${d.completedHeight}px" title="已完成: ${d.completed}"></div>
+                        </div>
+                        <div class="weekly-chart-label">${d.dayName}</div>
                     </div>
                 `).join('')}
+            </div>
+            <div class="weekly-chart-legend">
+                <div class="legend-item">
+                    <div class="legend-color total"></div>
+                    <span>总任务</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color completed"></div>
+                    <span>已完成</span>
+                </div>
             </div>
         `;
     }
@@ -3649,23 +3970,30 @@ class SelfDisciplineApp {
         if (!container) return;
         
         if (suggestions.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon"></div>
-                    <p>开始记录您的计划后，系统将为您生成个性化建议</p>
-                </div>
-            `;
+            container.innerHTML = '<p class="summary-placeholder">开始记录您的计划后，系统将为您生成个性化建议</p>';
         } else {
-            container.innerHTML = `
-                <div class="suggestions-list">
-                    ${suggestions.map(s => `
-                        <div class="suggestion-item">
-                            <div class="suggestion-title">${s.icon} ${s.title}</div>
-                            <div class="suggestion-desc">${s.text}</div>
-                        </div>
-                    `).join('')}
+            const suggestionsWithPriority = suggestions.map((s, index) => {
+                let priority = 'low';
+                if (s.title.includes('完成') || s.title.includes('提高')) {
+                    priority = 'high';
+                } else if (s.title.includes('培养') || s.title.includes('建立')) {
+                    priority = 'medium';
+                }
+                return { ...s, priority };
+            });
+            
+            container.innerHTML = suggestionsWithPriority.map(s => `
+                <div class="suggestion-card level-${s.priority}">
+                    <div class="suggestion-icon">${s.icon}</div>
+                    <div class="suggestion-content">
+                        <h5>${s.title}</h5>
+                        <p>${s.text}</p>
+                        <span class="suggestion-priority ${s.priority}">
+                            ${s.priority === 'high' ? '优先级：高' : s.priority === 'medium' ? '优先级：中' : '优先级：低'}
+                        </span>
+                    </div>
                 </div>
-            `;
+            `).join('');
         }
         
         this.updateDisciplineScore();
