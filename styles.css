@@ -4932,6 +4932,26 @@ input[type="radio"] {
     to { opacity: 1; transform: translateY(0); }
 }
 
+.toast.success {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    color: white !important;
+}
+
+.toast.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+    color: white !important;
+}
+
+.toast.warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    color: white !important;
+}
+
+.toast.info {
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    color: white !important;
+}
+
 .simple-manual-form {
     padding: var(--space-md) 0 !important;
 }

@@ -2234,6 +2234,20 @@ class SelfDisciplineApp {
     handleFileUpload(file) {
         const fileName = file.name.toLowerCase();
         
+        // 安全检查：文件大小限制（10MB）
+        if (file.size > 10 * 1024 * 1024) {
+            this.showToast('文件大小不能超过10MB', 3000, 'error');
+            return;
+        }
+        
+        // 安全检查：文件类型验证
+        const allowedTypes = ['.txt', '.md', '.docx', '.pdf'];
+        const fileExtension = '.' + fileName.split('.').pop();
+        if (!allowedTypes.includes(fileExtension)) {
+            this.showToast('不支持的文件格式，请上传 .txt, .md, .docx 或 .pdf 文件', 3000, 'error');
+            return;
+        }
+        
         this.switchImportType('smartdoc');
         
         const uploadArea = document.getElementById('uploadArea');
@@ -2248,7 +2262,7 @@ class SelfDisciplineApp {
         } else if (fileName.endsWith('.pdf')) {
             this.handlePdfFile(file);
         } else {
-            this.showToast('不支持的文件格式，请上传 .txt, .md, .docx 或 .pdf 文件');
+            this.showToast('不支持的文件格式，请上传 .txt, .md, .docx 或 .pdf 文件', 3000, 'error');
             if (uploadArea) {
                 uploadArea.style.display = 'block';
             }
