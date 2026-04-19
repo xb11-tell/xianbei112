@@ -159,22 +159,101 @@
         <div class="modal" id="importModal">
             <div class="modal-content modal-large">
             <div class="modal-header">
-                <h3>导入计划</h3>
+                <h3>📥 导入计划</h3>
                 <button class="close-btn" id="closeImportModal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="import-mode-switch">
-                    <button class="mode-btn active" data-mode="upload" id="uploadModeBtn">
-                        <span class="mode-icon">📄</span>
-                        <span class="mode-text">文件上传</span>
-                    </button>
-                    <button class="mode-btn" data-mode="manual" id="manualModeBtn">
+                    <button class="mode-btn active" data-mode="manual" id="manualModeBtn">
                         <span class="mode-icon">✏️</span>
                         <span class="mode-text">手动输入</span>
                     </button>
+                    <button class="mode-btn" data-mode="upload" id="uploadModeBtn">
+                        <span class="mode-icon">🤖</span>
+                        <span class="mode-text">智能导入</span>
+                    </button>
                 </div>
                 
-                <div class="import-content-area" id="uploadContentArea">
+                <div class="import-content-area" id="manualContentArea">
+                    <div class="simple-manual-form">
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="manualPlanDate">计划日期</label>
+                                <input type="date" id="manualPlanDate" class="form-input">
+                            </div>
+                            <div class="form-group half">
+                                <label for="manualPlanPriority">优先级</label>
+                                <select id="manualPlanPriority" class="form-select">
+                                    <option value="medium">普通</option>
+                                    <option value="high">高优先级</option>
+                                    <option value="low">低优先级</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="manualPlanTitle">任务标题</label>
+                            <input type="text" id="manualPlanTitle" class="form-input" placeholder="例如：晨跑30分钟">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="manualPlanContent">任务详情（可选）</label>
+                            <textarea id="manualPlanContent" class="form-textarea" rows="2" placeholder="补充说明..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="manualIsPeriodic">
+                                <span>重复此任务</span>
+                            </label>
+                        </div>
+                        
+                        <div class="periodic-options" id="manualPeriodicOptions" style="display: none;">
+                            <div class="form-row">
+                                <div class="form-group half">
+                                <label for="manualPeriodDays">重复频率</label>
+                                <select id="manualPeriodDays" class="form-select">
+                                    <option value="1">每天</option>
+                                    <option value="2">每2天</option>
+                                    <option value="7" selected>每周</option>
+                                    <option value="14">每两周</option>
+                                </select>
+                            </div>
+                            <div class="form-group half">
+                                <label for="manualPeriodEnd">结束日期（可选）</label>
+                                <input type="date" id="manualPeriodEnd" class="form-input">
+                            </div>
+                            </div>
+                        </div>
+                        
+                        <div class="pending-summary" id="pendingSummary" style="display: none;">
+                            <div class="pending-badge">
+                                <span class="pending-number" id="pendingNumber">0</span>
+                                <span>个计划待添加</span>
+                            </div>
+                            <button class="btn-text" id="viewPendingPlans">查看列表</button>
+                        </div>
+                        
+                        <div class="pending-plans-panel" id="pendingPlansPanel" style="display: none;">
+                            <div class="pending-header">
+                                <h5>待添加计划</h5>
+                                <button class="btn-text small" id="clearAllPending">清空全部</button>
+                            </div>
+                            <div class="pending-list" id="pendingPlans"></div>
+                        </div>
+                        
+                        <div class="form-actions-simple">
+                            <button class="btn btn-secondary" id="addAnotherPlan" type="button">
+                                ➕ 添加并继续
+                            </button>
+                            <button class="btn btn-primary" id="confirmManualPlan" type="button">
+                                ✅ 确认添加
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="import-content-area" id="uploadContentArea" style="display: none;">
                     <div class="import-type-selector">
                         <label class="import-type-option active" data-type="batch">
                             <input type="radio" name="importType" value="batch" checked>
@@ -350,85 +429,11 @@
                             <textarea id="subTasks" rows="6" placeholder="第一章：引言&#10;第二章：基础概念&#10;第三章：进阶技巧&#10;..."></textarea>
                         </div>
                     </div>
-                </div>
-                
-                <div class="import-content-area" id="manualContentArea" style="display: none;">
-                    <div class="manual-input-section">
-                        <div class="manual-input-header">
-                            <h4>📝 手动添加计划</h4>
-                            <p>快速添加单个或多个计划任务</p>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group half">
-                                <label for="manualPlanDate">计划日期</label>
-                                <input type="date" id="manualPlanDate" class="form-input">
-                            </div>
-                            <div class="form-group half">
-                                <label for="manualPlanPriority">优先级</label>
-                                <select id="manualPlanPriority" class="form-select">
-                                    <option value="medium">普通</option>
-                                    <option value="high">高优先级</option>
-                                    <option value="low">低优先级</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="manualPlanTitle">任务标题 *</label>
-                            <input type="text" id="manualPlanTitle" class="form-input" placeholder="输入任务标题...">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="manualPlanContent">任务详情（可选）</label>
-                            <textarea id="manualPlanContent" class="form-textarea" rows="3" placeholder="输入任务详细描述..."></textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="manualIsPeriodic">
-                                <span>周期性任务</span>
-                            </label>
-                        </div>
-                        
-                        <div class="periodic-options" id="manualPeriodicOptions" style="display: none;">
-                            <div class="form-row">
-                                <div class="form-group half">
-                                <label for="manualPeriodDays">周期天数</label>
-                                <select id="manualPeriodDays" class="form-select">
-                                    <option value="1">每天</option>
-                                    <option value="2">每2天</option>
-                                    <option value="7" selected>每周</option>
-                                    <option value="14">每两周</option>
-                                    <option value="30">每月</option>
-                                </select>
-                            </div>
-                            <div class="form-group half">
-                                <label for="manualPeriodEnd">结束日期（可选）</label>
-                                <input type="date" id="manualPeriodEnd" class="form-input">
-                            </div>
-                            </div>
-                        </div>
-                        
-                        <div class="manual-actions">
-                            <button class="btn btn-secondary" id="addAnotherPlan" type="button">
-                                <span>➕</span> 添加并继续
-                            </button>
-                            <button class="btn btn-primary" id="confirmManualPlan" type="button">
-                                <span>✅</span> 确认添加
-                            </button>
-                        </div>
-                        
-                        <div class="manual-plans-list" id="manualPlansList" style="display: none;">
-                            <h4>待添加计划列表 <span class="pending-count" id="pendingCount">(0)</span></h4>
-                            <div class="pending-plans" id="pendingPlans"></div>
-                        </div>
+                    
+                    <div class="import-actions">
+                        <button class="btn btn-secondary" id="clearImportForm" type="button">清空表单</button>
+                        <button class="btn btn-primary" id="confirmImport" type="button">确认导入</button>
                     </div>
-                </div>
-
-                <div class="import-actions">
-                    <button class="btn btn-secondary" id="clearImportForm" type="button">清空表单</button>
-                    <button class="btn btn-primary" id="confirmImport" type="button">确认导入</button>
                 </div>
             </div>
             </div>
@@ -840,6 +845,6 @@
 
     <div class="toast" id="toast"></div>
 
-    <script src="app.js?v=2026041905"></script>
+    <script src="app.js?v=2026041909"></script>
 </body>
 </html>

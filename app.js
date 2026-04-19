@@ -862,6 +862,8 @@ class SelfDisciplineApp {
         this.bindEventIfExists('addAnotherPlan', () => this.addManualPlan(true));
         this.bindEventIfExists('confirmManualPlan', () => this.addManualPlan(false));
         this.bindEventIfExists('clearImportForm', () => this.clearImportForm());
+        this.bindEventIfExists('viewPendingPlans', () => this.togglePendingList());
+        this.bindEventIfExists('clearAllPending', () => this.clearAllPending());
         
         document.querySelectorAll('.import-type-option').forEach(option => {
             option.addEventListener('click', (e) => {
@@ -1925,16 +1927,22 @@ class SelfDisciplineApp {
         document.getElementById('docStartDate').value = today;
         document.getElementById('goalStartDate').value = today;
         document.getElementById('manualPlanDate').value = today;
+        document.getElementById('manualPlanTitle').value = '';
+        document.getElementById('manualPlanContent').value = '';
+        document.getElementById('manualIsPeriodic').checked = false;
+        document.getElementById('manualPeriodicOptions').style.display = 'none';
         document.getElementById('fileInput').value = '';
         document.getElementById('planPreview').style.display = 'none';
         document.getElementById('previewContent').textContent = '';
         document.getElementById('docPreview').style.display = 'none';
         document.getElementById('uploadArea').style.display = 'block';
+        document.getElementById('pendingSummary').style.display = 'none';
+        document.getElementById('pendingPlansPanel').style.display = 'none';
         this.pendingPlanData = null;
         this.pendingDocPlans = null;
         this.pendingManualPlans = [];
         
-        this.switchImportMode('upload');
+        this.switchImportMode('manual');
         this.switchImportType('batch');
         
         this.activateModal(modal);
@@ -2074,7 +2082,7 @@ class SelfDisciplineApp {
             }
             
             this.pendingManualPlans.push(plan);
-            this.renderPendingManualPlans();
+            this.updatePendingCount();
             
             if (continueAdding) {
                 if (titleEl) titleEl.value = '';
@@ -2093,36 +2101,54 @@ class SelfDisciplineApp {
         }
     }
 
-    renderPendingManualPlans() {
-        const container = document.getElementById('pendingPlans');
-        const listContainer = document.getElementById('manualPlansList');
-        const countSpan = document.getElementById('pendingCount');
+    updatePendingCount() {
+        const summaryEl = document.getElementById('pendingSummary');
+        const numberEl = document.getElementById('pendingNumber');
         
         if (!this.pendingManualPlans || this.pendingManualPlans.length === 0) {
-            listContainer.style.display = 'none';
+            summaryEl.style.display = 'none';
             return;
         }
         
-        listContainer.style.display = 'block';
-        countSpan.textContent = `(${this.pendingManualPlans.length})`;
+        summaryEl.style.display = 'flex';
+        numberEl.textContent = this.pendingManualPlans.length;
+        this.renderPendingManualPlans();
+    }
+    
+    togglePendingList() {
+        const panel = document.getElementById('pendingPlansPanel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+    
+    clearAllPending() {
+        this.pendingManualPlans = [];
+        this.updatePendingCount();
+        document.getElementById('pendingPlansPanel').style.display = 'none';
+        this.showToast('已清空待添加列表');
+    }
+
+    renderPendingManualPlans() {
+        const container = document.getElementById('pendingPlans');
+        
+        if (!this.pendingManualPlans || this.pendingManualPlans.length === 0) {
+            container.innerHTML = '<p class="empty-text">暂无待添加计划</p>';
+            return;
+        }
         
         const priorityLabels = {
-            'high': '高优先级',
-            'medium': '普通',
-            'low': '低优先级'
+            'high': '高',
+            'medium': '普',
+            'low': '低'
         };
         
         container.innerHTML = this.pendingManualPlans.map((plan, index) => `
-            <div class="pending-plan-item">
-                <div class="pending-plan-info">
-                    <div class="pending-plan-title">${plan.title}</div>
-                    <div class="pending-plan-meta">
-                        <span>📅 ${plan.date}</span>
-                        <span>🏷️ ${priorityLabels[plan.priority] || '普通'}</span>
-                        ${plan.isPeriodic ? `<span>🔄 每${plan.periodDays}天</span>` : ''}
-                    </div>
+            <div class="pending-item">
+                <div class="pending-item-info">
+                    <span class="pending-item-title">${plan.title}</span>
+                    <span class="pending-item-date">${plan.date.slice(5)}</span>
+                    <span class="pending-badge priority-${plan.priority}">${priorityLabels[plan.priority]}</span>
                 </div>
-                <button class="pending-plan-remove" onclick="app.removePendingManualPlan(${index})">删除</button>
+                <button class="pending-item-remove" onclick="app.removePendingManualPlan(${index})">×</button>
             </div>
         `).join('');
     }
@@ -2130,7 +2156,7 @@ class SelfDisciplineApp {
     removePendingManualPlan(index) {
         if (this.pendingManualPlans) {
             this.pendingManualPlans.splice(index, 1);
-            this.renderPendingManualPlans();
+            this.updatePendingCount();
         }
     }
 
@@ -2195,6 +2221,8 @@ class SelfDisciplineApp {
         this.showToast(`成功添加 ${addedCount} 个计划`);
         console.log(`✅ 手动导入完成: ${addedCount} 个计划`);
     }
+
+
 
     closeImportModal() {
         this.closeAllModals();
